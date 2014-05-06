@@ -19,12 +19,20 @@ module Interactor
       new(context).tap(&:rollback).context
     end
 
+    def around(&hook)
+      around_hooks.push(hook)
+    end
+
     def before(&hook)
       before_hooks.push(hook)
     end
 
     def after(&hook)
       after_hooks.unshift(hook)
+    end
+
+    def around_hooks
+      @around_hooks ||= []
     end
 
     def before_hooks
@@ -53,9 +61,17 @@ module Interactor
   private
 
   def with_hooks
-    call_before_hooks
-    yield
-    call_after_hooks
+    call_around_hooks do
+      call_before_hooks
+      yield
+      call_after_hooks
+    end
+  end
+
+  def call_around_hooks(&block)
+    self.class.around_hooks.reverse.inject(block) { |chain, hook|
+      proc { instance_exec(chain, &hook) }
+    }.call
   end
 
   def call_before_hooks

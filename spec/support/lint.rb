@@ -39,6 +39,26 @@ shared_examples :lint do
     end
   end
 
+  describe ".around" do
+    it "appends the given hook" do
+      hook1 = proc { }
+
+      expect {
+        interactor.around(&hook1)
+      }.to change {
+        interactor.around_hooks
+      }.from([]).to([hook1])
+
+      hook2 = proc { }
+
+      expect {
+        interactor.around(&hook2)
+      }.to change {
+        interactor.around_hooks
+      }.from([hook1]).to([hook1, hook2])
+    end
+  end
+
   describe ".before" do
     it "appends the given hook" do
       hook1 = proc { }
@@ -79,6 +99,12 @@ shared_examples :lint do
     end
   end
 
+  describe "#around_hooks" do
+    it "is empty by default" do
+      expect(interactor.around_hooks).to eq([])
+    end
+  end
+
   describe "#before_hooks" do
     it "is empty by default" do
       expect(interactor.before_hooks).to eq([])
@@ -116,26 +142,30 @@ shared_examples :lint do
   describe "#call_with_hooks" do
     let(:instance) { interactor.new(hooks: []) }
     let(:context) { instance.context }
+    let(:around1) { proc { |i| context.hooks << :around1a; i.call; context.hooks << :around1b } }
+    let(:around2) { proc { |i| context.hooks << :around2a; i.call; context.hooks << :around2b } }
     let(:before1) { proc { context.hooks << :before1 } }
     let(:before2) { proc { context.hooks << :before2 } }
     let(:after1) { proc { context.hooks << :after1 } }
     let(:after2) { proc { context.hooks << :after2 } }
 
     before do
+      interactor.stub(:around_hooks) { [around1, around2] }
       interactor.stub(:before_hooks) { [before1, before2] }
       interactor.stub(:after_hooks) { [after1, after2] }
     end
 
     it "runs before hooks, call, then after hooks" do
       expect(instance).to receive(:call).once.with(no_args) do
-        expect(context.hooks).to eq([:before1, :before2])
+        expect(context.hooks).to eq([:around1a, :around2a, :before1, :before2])
+        context.hooks << :call
       end
 
       expect {
         instance.call_with_hooks
       }.to change {
         context.hooks
-      }.from([]).to([:before1, :before2, :after1, :after2])
+      }.from([]).to([:around1a, :around2a, :before1, :before2, :call, :after1, :after2, :around2b, :around1b])
     end
   end
 
