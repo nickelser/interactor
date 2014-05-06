@@ -83,6 +83,6 @@ module Interactor
   end
 
   def call_hooks(hooks)
-    hooks.each { |hook| instance_eval(&hook) }
+    hooks.each { |hook| instance_exec(&hook) }
   end
 end
