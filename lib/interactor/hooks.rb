@@ -43,18 +43,18 @@ module Interactor
     end
 
     def call_before_hooks
-      call_hooks(before_hooks)
+      perform_hooks(before_hooks)
     end
 
     def call_after_hooks
-      call_hooks(after_hooks)
+      perform_hooks(after_hooks)
     end
 
-    def call_hooks(hooks)
-      hooks.each { |hook| call_hook(hook) }
+    def perform_hooks(hooks)
+      hooks.each { |hook| perform_hook(hook) }
     end
 
-    def call_hook(hook)
+    def perform_hook(hook)
       hook.is_a?(Symbol) ? method(hook).call : instance_eval(&hook)
     end
   end

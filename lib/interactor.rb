@@ -14,8 +14,8 @@ module Interactor
   end
 
   module ClassMethods
-    def call(context = {})
-      new(context).tap(&:call_with_hooks).context
+    def perform(context = {})
+      new(context).tap(&:perform_with_hooks).context
     end
 
     def rollback(context = {})
@@ -27,11 +27,11 @@ module Interactor
     @context = Context.build(context)
   end
 
-  def call_with_hooks
+  def perform_with_hooks
     called = false
 
     with_hooks do
-      call
+      perform
       called = true
     end
   rescue => error
@@ -39,7 +39,7 @@ module Interactor
     raise unless error.is_a?(Failure)
   end
 
-  def call
+  def perform
   end
 
   def rollback

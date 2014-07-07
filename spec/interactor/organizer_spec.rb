@@ -46,7 +46,7 @@ module Interactor
       end
     end
 
-    describe "#call" do
+    describe "#perform" do
       let(:instance) { organizer.new }
       let(:context) { instance.context }
       let(:interactor2) { double(:interactor2) }
@@ -58,33 +58,33 @@ module Interactor
       end
 
       it "calls each interactor in order with the context" do
-        expect(interactor2).to receive(:call).once.with(context).ordered
-        expect(interactor3).to receive(:call).once.with(context).ordered
-        expect(interactor4).to receive(:call).once.with(context).ordered
+        expect(interactor2).to receive(:perform).once.with(context).ordered
+        expect(interactor3).to receive(:perform).once.with(context).ordered
+        expect(interactor4).to receive(:perform).once.with(context).ordered
 
         expect(instance).not_to receive(:rollback)
 
-        instance.call
+        instance.perform
       end
 
       it "builds up the called interactors" do
-        interactor2.stub(:call) do
+        interactor2.stub(:perform) do
           expect(instance.called).to eq([])
           interactor2
         end
 
-        interactor3.stub(:call) do
+        interactor3.stub(:perform) do
           expect(instance.called).to eq([interactor2])
           interactor3
         end
 
-        interactor4.stub(:call) do
+        interactor4.stub(:perform) do
           expect(instance.called).to eq([interactor2, interactor3])
           interactor4
         end
 
         expect {
-          instance.call
+          instance.perform
         }.to change {
           instance.called
         }.from([]).to([interactor2, interactor3, interactor4])
@@ -92,13 +92,13 @@ module Interactor
 
       context "when an interactor fails" do
         before do
-          interactor2.stub(:call) { context.fail! }
+          interactor2.stub(:perform) { context.fail! }
         end
 
         it "aborts" do
-          expect(interactor4).not_to receive(:call)
+          expect(interactor4).not_to receive(:perform)
 
-          instance.call rescue nil
+          instance.perform rescue nil
         end
 
         it "rolls back" do
@@ -106,25 +106,25 @@ module Interactor
             expect(instance.called).to eq([interactor2])
           end
 
-          instance.call rescue nil
+          instance.perform rescue nil
         end
 
         it "raises failure" do
           expect {
-            instance.call
+            instance.perform
           }.to raise_error(Failure)
         end
       end
 
       context "when an interactor errors" do
         before do
-          interactor2.stub(:call) { raise "foo" }
+          interactor2.stub(:perform) { raise "foo" }
         end
 
         it "aborts" do
-          expect(interactor4).not_to receive(:call)
+          expect(interactor4).not_to receive(:perform)
 
-          instance.call rescue nil
+          instance.perform rescue nil
         end
 
         it "rolls back" do
@@ -132,12 +132,12 @@ module Interactor
             expect(instance.called).to eq([interactor2])
           end
 
-          instance.call rescue nil
+          instance.perform rescue nil
         end
 
         it "raises the error" do
           expect {
-            instance.call
+            instance.perform
           }.to raise_error("foo")
         end
       end
@@ -217,16 +217,16 @@ module Interactor
       end
 
       it "calls and rolls back properly" do
-        expect(interactor2a).to receive(:call).once.with(context).ordered
-        expect(interactor2b).to receive(:call).once.with(context).ordered
-        expect(interactor2c).to receive(:call).once.with(context).ordered
-        expect(interactor3).to receive(:call).once.with(context).ordered
-        expect(interactor4a).to receive(:call).once.with(context).ordered
-        expect(interactor4b).to receive(:call).once.with(context).ordered do
+        expect(interactor2a).to receive(:perform).once.with(context).ordered
+        expect(interactor2b).to receive(:perform).once.with(context).ordered
+        expect(interactor2c).to receive(:perform).once.with(context).ordered
+        expect(interactor3).to receive(:perform).once.with(context).ordered
+        expect(interactor4a).to receive(:perform).once.with(context).ordered
+        expect(interactor4b).to receive(:perform).once.with(context).ordered do
           context.fail!
         end
-        expect(interactor4c).not_to receive(:call)
-        expect(interactor5).not_to receive(:call)
+        expect(interactor4c).not_to receive(:perform)
+        expect(interactor5).not_to receive(:perform)
 
         expect(interactor5).not_to receive(:rollback)
         expect(interactor4c).not_to receive(:rollback)
@@ -237,7 +237,7 @@ module Interactor
         expect(interactor2b).to receive(:rollback).once.with(context).ordered
         expect(interactor2a).to receive(:rollback).once.with(context).ordered
 
-        organizer.call(context)
+        organizer.perform(context)
       end
     end
   end

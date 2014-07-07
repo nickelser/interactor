@@ -1,22 +1,22 @@
 shared_examples :lint do
   let(:interactor) { Class.new.send(:include, described_class) }
 
-  describe ".call" do
+  describe ".perform" do
     let(:context) { double(:context) }
     let(:instance) { double(:instance, context: context) }
 
-    it "calls an instance with the given context" do
+    it "performs an instance with the given context" do
       expect(interactor).to receive(:new).once.with(foo: "bar") { instance }
-      expect(instance).to receive(:call_with_hooks).once.with(no_args)
+      expect(instance).to receive(:perform_with_hooks).once.with(no_args)
 
-      expect(interactor.call(foo: "bar")).to eq(context)
+      expect(interactor.perform(foo: "bar")).to eq(context)
     end
 
     it "provides a blank context if none is given" do
       expect(interactor).to receive(:new).once.with({}) { instance }
-      expect(instance).to receive(:call_with_hooks).once.with(no_args)
+      expect(instance).to receive(:perform_with_hooks).once.with(no_args)
 
-      expect(interactor.call).to eq(context)
+      expect(interactor.perform).to eq(context)
     end
   end
 
@@ -129,10 +129,10 @@ shared_examples :lint do
     end
   end
 
-  describe "#call_with_hooks" do
+  describe "#perform_with_hooks" do
     let(:instance) { interactor.new(hooks: []) }
     let(:before1) { proc { context.hooks << :before1 } }
-    let(:call) { proc { context.hooks << :call } }
+    let(:perform) { proc { context.hooks << :perform } }
     let(:after1) { proc { context.hooks << :after1 } }
 
     before do
@@ -148,16 +148,16 @@ shared_examples :lint do
         end
       end
       interactor.stub(:before_hooks) { [before1, :before2] }
-      instance.stub(:call) { instance.instance_eval(&call) }
+      instance.stub(:perform) { instance.instance_eval(&perform) }
       interactor.stub(:after_hooks) { [after1, :after2] }
     end
 
-    it "runs before hooks, call, then after hooks" do
+    it "runs before hooks, perform, then after hooks" do
       expect {
-        instance.call_with_hooks
+        instance.perform_with_hooks
       }.to change {
         instance.context.hooks
-      }.from([]).to([:before1, :before2, :call, :after1, :after2])
+      }.from([]).to([:before1, :before2, :perform, :after1, :after2])
     end
 
     context "when a before hook fails" do
@@ -165,7 +165,7 @@ shared_examples :lint do
 
       it "aborts" do
         expect {
-          instance.call_with_hooks
+          instance.perform_with_hooks
         }.not_to change {
           instance.context.hooks
         }
@@ -174,7 +174,7 @@ shared_examples :lint do
       it "doesn't roll back" do
         expect(instance).not_to receive(:rollback)
 
-        instance.call_with_hooks
+        instance.perform_with_hooks
       end
     end
 
@@ -183,7 +183,7 @@ shared_examples :lint do
 
       it "aborts" do
         expect {
-          instance.call_with_hooks rescue nil
+          instance.perform_with_hooks rescue nil
         }.not_to change {
           instance.context.hooks
         }
@@ -191,23 +191,23 @@ shared_examples :lint do
 
       it "raises the error" do
         expect {
-          instance.call_with_hooks
+          instance.perform_with_hooks
         }.to raise_error("foo")
       end
 
       it "doesn't roll back" do
         expect(instance).not_to receive(:rollback)
 
-        instance.call_with_hooks rescue nil
+        instance.perform_with_hooks rescue nil
       end
     end
 
-    context "when call fails" do
-      let!(:call) { proc { context.fail!; context.hooks << :call } }
+    context "when perform fails" do
+      let!(:perform) { proc { context.fail!; context.hooks << :perform } }
 
       it "aborts" do
         expect {
-          instance.call_with_hooks
+          instance.perform_with_hooks
         }.to change {
           instance.context.hooks
         }.from([]).to([:before1, :before2])
@@ -216,16 +216,16 @@ shared_examples :lint do
       it "doesn't roll back" do
         expect(instance).not_to receive(:rollback)
 
-        instance.call_with_hooks
+        instance.perform_with_hooks
       end
     end
 
-    context "when call errors" do
-      let!(:call) { proc { raise "foo"; context.hooks << :call } }
+    context "when perform errors" do
+      let!(:perform) { proc { raise "foo"; context.hooks << :perform } }
 
       it "aborts" do
         expect {
-          instance.call_with_hooks rescue nil
+          instance.perform_with_hooks rescue nil
         }.to change {
           instance.context.hooks
         }.from([]).to([:before1, :before2])
@@ -233,14 +233,14 @@ shared_examples :lint do
 
       it "raises the error" do
         expect {
-          instance.call_with_hooks
+          instance.perform_with_hooks
         }.to raise_error("foo")
       end
 
       it "doesn't roll back" do
         expect(instance).not_to receive(:rollback)
 
-        instance.call_with_hooks rescue nil
+        instance.perform_with_hooks rescue nil
       end
     end
 
@@ -249,16 +249,16 @@ shared_examples :lint do
 
       it "aborts" do
         expect {
-          instance.call_with_hooks
+          instance.perform_with_hooks
         }.to change {
           instance.context.hooks
-        }.from([]).to([:before1, :before2, :call])
+        }.from([]).to([:before1, :before2, :perform])
       end
 
       it "rolls back" do
         expect(instance).to receive(:rollback).once.with(no_args)
 
-        instance.call_with_hooks
+        instance.perform_with_hooks
       end
     end
 
@@ -267,33 +267,33 @@ shared_examples :lint do
 
       it "aborts" do
         expect {
-          instance.call_with_hooks rescue nil
+          instance.perform_with_hooks rescue nil
         }.to change {
           instance.context.hooks
-        }.from([]).to([:before1, :before2, :call])
+        }.from([]).to([:before1, :before2, :perform])
       end
 
       it "rolls back" do
         expect(instance).to receive(:rollback).once.with(no_args)
 
-        instance.call_with_hooks rescue nil
+        instance.perform_with_hooks rescue nil
       end
 
       it "raises the error" do
         expect {
-          instance.call_with_hooks
+          instance.perform_with_hooks
         }.to raise_error("foo")
       end
     end
   end
 
-  describe "#call" do
+  describe "#perform" do
     let(:instance) { interactor.new }
 
     it "exists" do
-      expect(instance).to respond_to(:call)
-      expect { instance.call }.not_to raise_error
-      expect { instance.method(:call) }.not_to raise_error
+      expect(instance).to respond_to(:perform)
+      expect { instance.perform }.not_to raise_error
+      expect { instance.method(:perform) }.not_to raise_error
     end
   end
 

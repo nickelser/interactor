@@ -24,10 +24,10 @@ module Interactor
         self.class.interactors
       end
 
-      def call
+      def perform
         interactors.each do |interactor|
           begin
-            interactor.call(context)
+            interactor.perform(context)
           rescue
             rollback_called
             raise
