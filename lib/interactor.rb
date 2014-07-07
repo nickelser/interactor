@@ -59,7 +59,7 @@ module Interactor
 
   def method_missing(method, *)
     if context.respond_to?(method)
-      context.send(:method)
+      context.send(method)
     else
       super
     end
