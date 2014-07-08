@@ -28,15 +28,15 @@ module Interactor
   end
 
   def perform_with_hooks
-    called = false
-
     with_hooks do
       perform
-      called = true
     end
   rescue => error
-    rollback if called
-    raise unless error.is_a?(Failure)
+    if error.is_a?(Failure)
+      rollback
+    else
+      raise error
+    end
   end
 
   def perform
