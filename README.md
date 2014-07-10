@@ -1,16 +1,10 @@
 # Interactor
 
-[![Gem Version](https://badge.fury.io/rb/interactor.png)](http://badge.fury.io/rb/interactor)
-[![Build Status](https://travis-ci.org/collectiveidea/interactor.png?branch=master)](https://travis-ci.org/collectiveidea/interactor)
-[![Code Climate](https://codeclimate.com/github/collectiveidea/interactor.png)](https://codeclimate.com/github/collectiveidea/interactor)
-[![Coverage Status](https://coveralls.io/repos/collectiveidea/interactor/badge.png?branch=master)](https://coveralls.io/r/collectiveidea/interactor?branch=master)
-[![Dependency Status](https://gemnasium.com/collectiveidea/interactor.png)](https://gemnasium.com/collectiveidea/interactor)
-
 Interactor provides a common interface for performing complex interactions in a single request.
 
 ## Problems
 
-If you're like us at [Collective Idea](http://collectiveidea.com), you've noticed that there seems to be a layer missing between the Controller and the Model.
+Perhaps you've noticed that there seems to be a layer missing between the Controller and the Model.
 
 ### Fat Models
 
@@ -71,8 +65,8 @@ class AuthenticateUser
   include Interactor
 
   def perform
-    if user = User.authenticate(context[:email], context[:password])
-      context[:user] = user
+    if user = User.authenticate(context.email, context.password)
+      context.user = user
     else
       context.fail!
     end
@@ -90,6 +84,8 @@ It's feasible that a collection of small interactors such as these could encapsu
 
 Interactors free up your controllers to simply accept requests and build responses. They free up your models to acts as the gatekeepers to your data.
 
+Context is a simple wrapper over OpenStruct, providing easy flexibility.
+
 ### Pre-perform operation
 In the above example if you want to add some checking or small operations before the main operation,
 you can just define `setup` and it will be called before `perform`.
@@ -99,12 +95,12 @@ class AuthenticateUser
   include Interactor
   
   def setup
-    context.fail! unless context[:email].present? && context[:password].present?
+    context.fail! unless context.email.present? && context.password.present?
   end
 
   def perform
-    if user = User.authenticate(context[:email], context[:password])
-      context[:user] = user
+    if user = User.authenticate(context.email, context.password)
+      context.user = user
     else
       context.fail!
     end
@@ -112,38 +108,24 @@ class AuthenticateUser
 end
 ```
 
-## Organizers
-
-An organizer is just an interactor that's in charge of other interactors. When an organizer is asked to perform, it just asks its interactors to perform, in order.
-
-Organizers are great for complex interactions. For example, placing an order might involve:
-
-* checking inventory
-* calculating tax
-* charging a credit card
-* writing an order to the database
-* sending email notifications
-* scheduling a follow-up email
-
-Each of these actions can (and should) have its own interactor and one organizer can perform them all. That organizer may look like:
+### Calling other interactors
+It's possible to call other interactors from within your original interactor. Just call `perform_interactor(s)` and they will be called with the current context.
 
 ```ruby
-class PlaceOrder
-  include Interactor::Organizer
+class AuthenticateAdmin
+  include Interactor
 
-  organize [
-    CheckInventory,
-    CalculateTax,
-    ChargeCard,
-    CreateOrder,
-    DeliverThankYou,
-    DeliverOrderNotification,
-    ScheduleFollowUp
-  ]
+  def perform
+    perform_interactor AuthenticateUser
+
+    if user.admin
+      context.is_admin = true
+    else
+      fail!
+    end
+  end
 end
 ```
-
-Breaking your interactors into bite-sized pieces also gives you the benefit of reusability. In our example above, there may be several scenarios where you may want to check inventory. Encapsulating that logic in one interactor enables you to reuse that interactor, reducing duplication.
 
 ## Examples
 
@@ -180,8 +162,8 @@ class AuthenticateUser
   include Interactor
 
   def perform
-    if user = User.authenticate(context[:email], context[:password])
-      context[:user] = user
+    if user = User.authenticate(context.email, context.password)
+      context.user = user
     else
       context.fail!
     end
@@ -189,14 +171,14 @@ class AuthenticateUser
 end
 ```
 
-The interactor also has convenience methods for dealing with its context. Anything added to the context is available via getter method on the interactor instance. The following is equivalent:
+There is also the convenience method, `fail~`. In addition, since it is just an OpenStruct, you can use hash access notation. The following is equivalent:
 
 ```ruby
 class AuthenticateUser
   include Interactor
 
   def perform
-    if user = User.authenticate(email, password)
+    if user = User.authenticate(context[:email], context[:password)
       context[:user] = user
     else
       fail!
@@ -213,56 +195,9 @@ fail!(message: "Uh oh!")
 
 Interactors are successful until explicitly failed. Instances respond to `success?` and `failure?`.
 
-### Organizers
-
-In the example above, one could argue that the interactor is simple enough that it could be excluded altogether. While that's probably true, in [our](http://collectiveidea.com) experience, these interactions don't stay simple for long. When they get more complex, the `AuthenticateUser` interactor can be converted to an organizer.
-
-```ruby
-class AuthenticateUser
-  include Interactor::Organizer
-
-  organize FindUserByEmailAndPassword, SendWelcomeEmail
-end
-```
-
-And your controller doesn't change a bit!
-
-The `AuthenticateUser` organizer receives its context from the controller and passes it to the interactors, which each manipulate it in turn.
-
-```ruby
-class FindUserByEmailAndPassword
-  include Interactor
-
-  def perform
-    if user = User.authenticate(email, password)
-      context[:user] = user
-    else
-      fail!
-    end
-  end
-end
-```
-
-```ruby
-class SendWelcomeEmail
-  include Interactor
-
-  def perform
-    if user.newly_created?
-      Notifier.welcome(user).deliver
-      context[:new_user] = true
-    end
-  end
-end
-```
-
-#### Inception
-
-Because interactors and organizers adhere to the same interface, it's trivial for an organizer to organize… organizers!
-
 #### Rollback
 
-If an organizer has three interactors and the second one fails, the third one is never called.
+If an interactor calls three other interactors and the second one fails, the third one is never called.
 
 In addition to halting the chain, an organizer will also *rollback* through the interactors that it has successfully performed so that each interactor has the opportunity to undo itself. Just define a `rollback` method. It has all the same access to the context as `perform` does.
 
