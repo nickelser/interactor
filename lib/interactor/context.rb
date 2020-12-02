@@ -15,7 +15,7 @@ module Interactor
     end
 
     def fail!(context = {})
-      modifiable.update(context)
+      context.each { |key, value| self[key.to_sym] = value }
       @failure = true
       raise Failure
     end
